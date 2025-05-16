@@ -1,135 +1,94 @@
-from docx import Document
-import requests
 from OpenOrchestrator.orchestrator_connection.connection import OrchestratorConnection
 import os
-from requests_ntlm import HttpNtlmAuth
-import xml.etree.ElementTree as ET
-from datetime import datetime
+from office365.runtime.auth.user_credential import UserCredential
+from office365.sharepoint.client_context import ClientContext
+import json
+import sys
 
-#Random deskproid
-deskproid = "2076"
-
-
-orchestrator_connection = OrchestratorConnection("AktindsigtAfgørelsesskriv", os.getenv('OpenOrchestratorSQL'),os.getenv('OpenOrchestratorKey'), None)
-aktbob_credentials = orchestrator_connection.get_credential("AktbobAPIKey")
-base_url = aktbob_credentials.username
-url = f"{base_url}/Database/Tickets?deskproId={deskproid}"
-headers = {
-  'ApiKey': aktbob_credentials.password
-}
-
-response = requests.request("GET", url, headers=headers)
-data = response.json()
-
-# Extracting caseNumber values
-case_numbers = [
-    case["caseNumber"] for case in data[0]["cases"] 
-    if case["sharepointFolderName"] is not None
-]
-
-if case_numbers:
-    case_details = []  # List to hold each case's details
-    go_credentials = orchestrator_connection.get_credential("GOAktApiUser")
-    API_url = orchestrator_connection.get_constant("GOApiURL").value
-    session = requests.Session()
-    session.auth = HttpNtlmAuth(go_credentials.username, go_credentials.password)
-    session.post(API_url, timeout=500)
-    for case in case_numbers:
-        response = session.get(f'{API_url}/_goapi/Cases/Metadata/{case}')
-        data = response.json()
-        metadata_xml = data["Metadata"]
-        # Parse the XML and fetch the ows_Title attribute
-        root = ET.fromstring(metadata_xml)
-        case_title = root.get("ows_Title")
-        modtaget_date = datetime.strptime(root.get("ows_Modtaget"), "%Y-%m-%d %H:%M:%S").strftime("%d-%m-%Y")
-        aktindsigt_decision = "Your Aktindsigt Decision Here"  # Customize this as needed
-
-        # Add the details to the list
-        case_details.append([case, case_title, modtaget_date, aktindsigt_decision])
-        
-print(case_numbers)
-
-# Load the document
-doc = Document('Document.docx')
-
-# Define the variables for each unique placeholder
-afdeling = "Digitalisering"
-ansoegernavn = "John Doe"
-ansoegermail = "john.doe@example.com"
-dato = datetime.today()
-deskprotitel = "Ejendomssag"
-besvarelse = "Din anmodning er blevet godkendt."
-afdelingsmail = "digitalisering@test.dk"
-afdelingstelefon = "1234 5678"
-
-# Function to replace text in runs while preserving formatting
-def replace_text_in_paragraph(paragraph, placeholder, replacement):
-    full_text = ''.join(run.text for run in paragraph.runs)
-    if placeholder in full_text:
-        # Replace the text in the full text
-        full_text = full_text.replace(placeholder, replacement)
-        
-        # Clear existing runs and split the replacement text back into new runs
-        for run in paragraph.runs:
-            run.text = ''  # Clear the text in each run
-        paragraph.runs[0].text = full_text  # Set the text in the first run
-
-def insert_table_at_placeholder(doc, placeholder, case_details):
-    for paragraph in doc.paragraphs:
-        if placeholder in paragraph.text:
-            # Clear the paragraph's text and insert the table
-            paragraph.clear()  # Clear the placeholder text
-
-            # Add a table at this location
-            table = doc.add_table(rows=1, cols=4)
-            table.style = 'Table Grid'  # Use a style of your choice
-
-            # Define the header row
-            header_cells = table.rows[0].cells
-            header_cells[0].text = "Sagsnummer"
-            header_cells[1].text = "Sagstitel"
-            header_cells[2].text = "Sagsdato"
-            header_cells[3].text = "Aktindsigt"
-
-            # Add a row for each case
-            for case_detail in case_details:
-                row_cells = table.add_row().cells
-                row_cells[0].text = case_detail[0]
-                row_cells[1].text = case_detail[1]
-                row_cells[2].text = case_detail[2]
-                row_cells[3].text = case_detail[3]
-
-            # Insert the table after clearing the placeholder
-            paragraph._element.addnext(table._element)
-            break
+orchestrator_connection = OrchestratorConnection("Slettebot Sharepoint", os.getenv('OpenOrchestratorSQL'),os.getenv('OpenOrchestratorKey'), None)
+RobotCredentials = orchestrator_connection.get_credential("Robot365User")
+username = RobotCredentials.username
+password = RobotCredentials.password
 
 
-insert_table_at_placeholder(doc, "[Sagstabel]", case_details)
+def sharepoint_client(username: str, password: str, sharepoint_site_url: str, orchestrator_connection: OrchestratorConnection) -> ClientContext:
+    """
+    Creates and returns a SharePoint client context.
+    """
+    ctx = ClientContext(sharepoint_site_url).with_credentials(UserCredential(username, password))
+    web = ctx.web
+    ctx.load(web)
+    ctx.execute_query()
+    print(f"✅ Authenticated to SharePoint. Site Title: {web.properties['Title']}")
+    return ctx
 
-# Replace placeholders in paragraphs
-for paragraph in doc.paragraphs:
-    replace_text_in_paragraph(paragraph, '[Afdeling]', afdeling)
-    replace_text_in_paragraph(paragraph, '[Ansøgernavn]', ansoegernavn)
-    replace_text_in_paragraph(paragraph, '[Ansøgermail]', ansoegermail)
-    replace_text_in_paragraph(paragraph, '[Dato]', dato)
-    replace_text_in_paragraph(paragraph, '[Deskprotitel]', deskprotitel)
-    replace_text_in_paragraph(paragraph, '[Besvarelse]', besvarelse)
-    replace_text_in_paragraph(paragraph, '[Afdelingsmail]', afdelingsmail)
-    replace_text_in_paragraph(paragraph, '[Afdelingstelefon]', afdelingstelefon)
 
-# Replace placeholders in tables
-for table in doc.tables:
-    for row in table.rows:
-        for cell in row.cells:
-            for paragraph in cell.paragraphs:
-                replace_text_in_paragraph(paragraph, '[Afdeling]', afdeling)
-                replace_text_in_paragraph(paragraph, '[Ansøgernavn]', ansoegernavn)
-                replace_text_in_paragraph(paragraph, '[Ansøgermail]', ansoegermail)
-                replace_text_in_paragraph(paragraph, '[Dato]', dato)
-                replace_text_in_paragraph(paragraph, '[Deskprotitel]', deskprotitel)
-                replace_text_in_paragraph(paragraph, '[Besvarelse]', besvarelse)
-                replace_text_in_paragraph(paragraph, '[Afdelingsmail]', afdelingsmail)
-                replace_text_in_paragraph(paragraph, '[Afdelingstelefon]', afdelingstelefon)
+def delete_sharepoint_folder(folder_path: str, ctx: ClientContext, orchestrator_connection: OrchestratorConnection):
+    """
+    Recursively deletes a SharePoint folder and all its contents.
+    """
+    print(f"🗑 Deleting folder: {folder_path}")
+    try:
+        target_folder = ctx.web.get_folder_by_server_relative_url(folder_path)
+        ctx.load(target_folder)
+        ctx.execute_query()
 
-# Save the modified document
-doc.save('ModifiedDocument.docx')
+        files = target_folder.files
+        ctx.load(files)
+        ctx.execute_query()
+        for file in files:
+            print(f"  Deleting file: {file.serverRelativeUrl}")
+            file.delete_object()
+        ctx.execute_query()
+
+        subfolders = target_folder.folders
+        ctx.load(subfolders)
+        ctx.execute_query()
+        for subfolder in subfolders:
+            delete_sharepoint_folder(subfolder.serverRelativeUrl, ctx, orchestrator_connection)
+
+        target_folder.delete_object()
+        ctx.execute_query()
+        orchestrator_connection.log_info(f"✅ Folder deleted: {folder_path}")
+    except Exception as e:
+        orchestrator_connection.log_info(f'An exception occurred: {e}')
+
+#Hent mappenavn til sletning
+
+# queue_json = json.loads(queue_element.data)
+# mappenavn = queue_json.get('SharepointMappeNavn')
+
+# Hent mappenavn til sletning
+try:
+    # queue_json = json.loads(queue_element.data)
+    mappenavn = ""
+except Exception as e:
+    orchestrator_connection.log_info(f"❌ Fejl ved indlæsning af køelementets JSON: {e}")
+    sys.exit()
+
+# Beskyt mod farlige eller tomme navne
+forbidden_names = ["", "Dokumentlister", "Aktindsigter", None]
+if not mappenavn or mappenavn.strip() in forbidden_names:
+    orchestrator_connection.log_info(f"❌ Mappenavn '{mappenavn}' er ugyldigt eller forbudt – sletning afbrydes.")
+    sys.exit()
+
+#Hent sharepoint site
+
+# sharepoint_site_url = orchestrator_connection.get_constant("AktbobSharePointURL").value
+sharepoint_site_url = "https://aarhuskommune.sharepoint.com/Teams/tea-teamsite11819"
+
+#Definer mapper indenfor sharepointsite (Dokumentlistemappe og aktindsigtsmappe)
+
+# folder_relative_url_aktliste = "/Teams/tea-teamsite10506/Delte dokumenter/Aktindsigter"
+# folder_relative_url_dokumentliste = "/Teams/tea-teamsite10506/Delte dokumenter/Dokumentlister/"
+folder_relative_url_aktliste = f"/Teams/tea-teamsite11819/Delte dokumenter/{mappenavn}"
+folder_relative_url_dokumentliste= f"/Teams/tea-teamsite11819/Delte dokumenter/{mappenavn}"
+
+# Opret forbindelse
+ctx = sharepoint_client(username, password, sharepoint_site_url, orchestrator_connection)
+
+# # Slet dem
+orchestrator_connection.log_info('Deleting aktliste folder')
+delete_sharepoint_folder(folder_relative_url_aktliste, ctx= ctx, orchestrator_connection= orchestrator_connection)
+orchestrator_connection.log_info('Deleting dokumentliste folder')
+delete_sharepoint_folder(folder_relative_url_dokumentliste, ctx= ctx, orchestrator_connection= orchestrator_connection)
