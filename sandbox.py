@@ -61,7 +61,7 @@ def delete_sharepoint_folder(folder_path: str, ctx: ClientContext, orchestrator_
 # Hent mappenavn til sletning
 try:
     # queue_json = json.loads(queue_element.data)
-    mappenavn = ""
+    mappenavn = "PER-2024-000254 - Personaleaktindsigtsanmodning"
 except Exception as e:
     orchestrator_connection.log_info(f"❌ Fejl ved indlæsning af køelementets JSON: {e}")
     sys.exit()
@@ -75,20 +75,17 @@ if not mappenavn or mappenavn.strip() in forbidden_names:
 #Hent sharepoint site
 
 # sharepoint_site_url = orchestrator_connection.get_constant("AktbobSharePointURL").value
-sharepoint_site_url = "https://aarhuskommune.sharepoint.com/Teams/tea-teamsite11819"
+sharepoint_site_url = "https://aarhuskommune.sharepoint.com/Teams/tea-teamsite12186"
 
 #Definer mapper indenfor sharepointsite (Dokumentlistemappe og aktindsigtsmappe)
 
 # folder_relative_url_aktliste = "/Teams/tea-teamsite10506/Delte dokumenter/Aktindsigter"
 # folder_relative_url_dokumentliste = "/Teams/tea-teamsite10506/Delte dokumenter/Dokumentlister/"
-folder_relative_url_aktliste = f"/Teams/tea-teamsite11819/Delte dokumenter/{mappenavn}"
-folder_relative_url_dokumentliste= f"/Teams/tea-teamsite11819/Delte dokumenter/{mappenavn}"
+folder_relative_url_aktliste = f"/Teams/tea-teamsite12186/Delte dokumenter/{mappenavn}"
+folder_relative_url_dokumentliste= f"/Teams/tea-teamsite12186/Delte dokumenter/Dokumentlister/{mappenavn}"
 
 # Opret forbindelse
 ctx = sharepoint_client(username, password, sharepoint_site_url, orchestrator_connection)
 
 # # Slet dem
-orchestrator_connection.log_info('Deleting aktliste folder')
-delete_sharepoint_folder(folder_relative_url_aktliste, ctx= ctx, orchestrator_connection= orchestrator_connection)
-orchestrator_connection.log_info('Deleting dokumentliste folder')
 delete_sharepoint_folder(folder_relative_url_dokumentliste, ctx= ctx, orchestrator_connection= orchestrator_connection)
