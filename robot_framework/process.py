@@ -17,7 +17,21 @@ def process(orchestrator_connection: OrchestratorConnection, queue_element: Queu
         """
         Creates and returns a SharePoint client context.
         """
+        
         ctx = ClientContext(sharepoint_site_url).with_credentials(UserCredential(username, password))
+        # Authenticate to SharePoint using Office365 credentials
+    
+        certification = orchestrator_connection.get_credential("SharePointCert")
+        api = orchestrator_connection.get_credential("SharePointAPI")
+    
+        cert_credentials = {
+            "tenant": api.username,
+            "client_id": api.password,
+            "thumbprint": certification.username,
+            "cert_path": certification.password
+        }
+    
+        ctx = ClientContext(sharepoint_site_url).with_client_certificate(**cert_credentials)
         web = ctx.web
         ctx.load(web)
         ctx.execute_query()
