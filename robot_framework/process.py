@@ -85,7 +85,7 @@ def process(orchestrator_connection: OrchestratorConnection, queue_element: Queu
             ctx.load(subfolders)
             ctx.execute_query()
             for subfolder in subfolders:
-                delete_sharepoint_folder(subfolder.serverRelativeUrl, ctx, orchestrator_connection)
+                delete_sharepoint_folder(subfolder.serverRelativeUrl, ctx, orchestrator_connection, deskpro_id, cursor, conn)
 
             target_folder.delete_object()
             ctx.execute_query()
