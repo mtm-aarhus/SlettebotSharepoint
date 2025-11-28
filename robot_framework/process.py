@@ -123,6 +123,6 @@ def process(orchestrator_connection: OrchestratorConnection, queue_element: Queu
 
     # # Slet dem
     orchestrator_connection.log_info('Deleting aktliste folder')
-    delete_sharepoint_folder(folder_relative_url_aktliste, ctx= ctx, orchestrator_connection= orchestrator_connection, deskpro_id, cursor, conn)
+    delete_sharepoint_folder(folder_relative_url_aktliste, ctx= ctx, orchestrator_connection= orchestrator_connection, deskpro_id = deskpro_id, cursor = cursor, conn = conn)
     orchestrator_connection.log_info('Deleting dokumentliste folder')
-    delete_sharepoint_folder(folder_relative_url_dokumentliste, ctx= ctx, orchestrator_connection= orchestrator_connection, deskpro_id, cursor, conn)
+    delete_sharepoint_folder(folder_relative_url_dokumentliste, ctx= ctx, orchestrator_connection= orchestrator_connection, deskpro_id = deskpro_id, cursor = cursor, conn= conn)
