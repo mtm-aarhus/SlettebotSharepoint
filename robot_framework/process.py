@@ -99,7 +99,7 @@ def process(orchestrator_connection: OrchestratorConnection, queue_element: Queu
     try:
         queue_json = json.loads(queue_element.data)
         deskpro_id = queue_json.get('DeskproId')
-        mappenavn = queue_json.get('SharepointMappeNavn')
+        mappenavn = queue_json.get('SharepointFolderName')
     except Exception as e:
         orchestrator_connection.log_info(f"❌ Fejl ved indlæsning af køelementets JSON: {e}")
         return
